@@ -3,6 +3,8 @@ use std::net::SocketAddr;
 use clap::Parser;
 use config::{ConfigError, Map, Value};
 
+use crate::config::LogLevel;
+
 #[derive(Clone, Debug, Parser)]
 pub struct Args {
     #[arg(
@@ -18,6 +20,8 @@ pub struct Args {
     pub storage: Option<String>,
     #[arg(short, long, default_value = "http://127.0.0.1:8080")]
     pub base_url: Option<String>,
+    #[arg(long, value_name = "level", value_enum)]
+    pub log_level: Option<LogLevel>,
 }
 
 impl config::Source for Args {
@@ -53,10 +57,10 @@ impl config::Source for Args {
             );
         }
         if let Some(ref base_url) = self.base_url {
-            map.insert(
-                "base_url".to_string(),
-                Value::from(base_url.clone())
-            );
+            map.insert("base_url".to_string(), Value::from(base_url.clone()));
+        }
+        if let Some(log_level) = self.log_level {
+            map.insert("log_level".to_string(), Value::from(log_level.to_string()));
         }
 
         Ok(map)

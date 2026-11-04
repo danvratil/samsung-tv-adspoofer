@@ -3,10 +3,13 @@ use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 use axum::body::{Body, Bytes};
 use axum::extract::{Multipart, Path, State};
-use axum::http::{Response, StatusCode};
+use axum::http::{Request, Response, StatusCode};
 use axum::response::Redirect;
 use axum::routing::{get, post};
 use axum::{Json, Router};
+
+use tower::ServiceBuilder;
+use tower_http::trace::TraceLayer;
 
 use minijinja::{Environment, context};
 
@@ -16,7 +19,7 @@ use tokio::net::TcpListener;
 use tokio_util::io::ReaderStream;
 
 use serde_json::{Value, json};
-use tracing::error;
+use tracing::{Span, error};
 
 use crate::config::AppConfig;
 use crate::database::{Database, PictureId};
@@ -50,16 +53,26 @@ pub async fn create_app(config: AppConfig) -> Result<(), Box<dyn std::error::Err
         .route("/images/", post(add_image_handler))
         .route("/images/{image_id}/delete", post(delete_image_handler))
         .route("/images/{image_id}", get(get_image_handler))
-
         // This is the main route: the SmartHub calls this to get the top banner ad.
         .route("/impressions/title", get(impressions_title_handler))
-
         // Since we are redirecting all adgrx.com requests to this server, we want to graciously
         // handle all other paths that the TV seems to be hitting, just so the 404s don't prevent
         // the TV from loading the adverts.
         .route("/impressions/{*path}", get(blackhole_handler))
         .route("/addopportunity/{*path}", get(blackhole_handler))
         .route("/loads/{*path}", get(blackhole_handler))
+        .layer(ServiceBuilder::new().layer(
+            TraceLayer::new_for_http()
+                .make_span_with(|_: &Request<Body>| {
+                    tracing::debug_span!("http-request")
+                })
+                .on_request(|request: &Request<Body>, _span: &Span| {
+                    tracing::debug!("started {} {}", request.method(), request.uri().path())
+                })
+                .on_response(|response: &Response<Body>, _latency: Duration, _span: &Span| {
+                    tracing::debug!("response status {}", response.status())
+                })
+        ))
         .with_state(Arc::clone(&shared_state));
 
     let listen = &shared_state.config.http_server;
@@ -157,13 +170,10 @@ async fn delete_image_handler(
     Path(image_id): Path<PictureId>,
     State(state): State<Arc<AppState<'_>>>,
 ) -> Result<Redirect, StatusCode> {
-    state
-        .db
-        .delete_picture(image_id)
-        .map_err(|e| {
-            error!("Failed to delete picture from database: {:?}", e);
-            StatusCode::INTERNAL_SERVER_ERROR
-        })?;
+    state.db.delete_picture(image_id).map_err(|e| {
+        error!("Failed to delete picture from database: {:?}", e);
+        StatusCode::INTERNAL_SERVER_ERROR
+    })?;
 
     Ok(Redirect::to("/"))
 }
@@ -177,7 +187,7 @@ async fn get_image_handler(
         Ok(None) => return Err(StatusCode::NOT_FOUND),
         Err(e) => {
             error!("Failed to get picture from database: {:?}", e);
-            return Err(StatusCode::INTERNAL_SERVER_ERROR)
+            return Err(StatusCode::INTERNAL_SERVER_ERROR);
         }
     };
 
@@ -277,5 +287,5 @@ async fn impressions_title_handler(
 }
 
 async fn blackhole_handler() -> Json<Value> {
-    return Json(Value::Object(serde_json::Map::default()))
+    return Json(Value::Object(serde_json::Map::default()));
 }
