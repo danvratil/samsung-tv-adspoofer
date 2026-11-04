@@ -114,10 +114,12 @@ async fn add_image_handler(
     }
 
     let Some(file_name) = file_name else {
+        error!("Missing file name in form request");
         return Err(StatusCode::BAD_REQUEST);
     };
 
     let Some(file_data) = file_data else {
+        error!("Missing file data in form request");
         return Err(StatusCode::BAD_REQUEST);
     };
 
@@ -158,7 +160,10 @@ async fn delete_image_handler(
     state
         .db
         .delete_picture(image_id)
-        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+        .map_err(|e| {
+            error!("Failed to delete picture from database: {:?}", e);
+            StatusCode::INTERNAL_SERVER_ERROR
+        })?;
 
     Ok(Redirect::to("/"))
 }
@@ -170,10 +175,16 @@ async fn get_image_handler(
     let path = match state.db.get_picture(image_id) {
         Ok(Some(picture)) => picture.path,
         Ok(None) => return Err(StatusCode::NOT_FOUND),
-        Err(_) => return Err(StatusCode::INTERNAL_SERVER_ERROR),
+        Err(e) => {
+            error!("Failed to get picture from database: {:?}", e);
+            return Err(StatusCode::INTERNAL_SERVER_ERROR)
+        }
     };
 
-    let file = File::open(path).await.map_err(|_| StatusCode::NOT_FOUND)?;
+    let file = File::open(&path).await.map_err(|e| {
+        error!("Could not open image file at path {:?}: {:?}", path, e);
+        StatusCode::NOT_FOUND
+    })?;
     let stream = ReaderStream::new(file);
 
     Response::builder()
