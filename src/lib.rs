@@ -54,12 +54,12 @@ pub async fn create_app(config: AppConfig) -> Result<(), Box<dyn std::error::Err
         .route("/images/{image_id}/delete", post(delete_image_handler))
         .route("/images/{image_id}", get(get_image_handler))
         // This is the main route: the SmartHub calls this to get the top banner ad.
-        .route("/impressions/title", get(impressions_title_handler))
+        .route("/impressions/tile", get(impressions_title_handler))
         // Since we are redirecting all adgrx.com requests to this server, we want to graciously
         // handle all other paths that the TV seems to be hitting, just so the 404s don't prevent
         // the TV from loading the adverts.
         .route("/impressions/{*path}", get(blackhole_handler))
-        .route("/addopportunity/{*path}", get(blackhole_handler))
+        .route("/adopportunity", get(blackhole_handler))
         .route("/loads/{*path}", get(blackhole_handler))
         .layer(ServiceBuilder::new().layer(
             TraceLayer::new_for_http()
@@ -198,6 +198,7 @@ async fn get_image_handler(
     let stream = ReaderStream::new(file);
 
     Response::builder()
+        .header("Content-Type", "image/jpeg")
         .body(Body::from_stream(stream))
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)
 }
@@ -215,8 +216,7 @@ async fn impressions_title_handler(
         Err(_) => return Err(StatusCode::INTERNAL_SERVER_ERROR),
     };
     let image_url = format!(
-        "{}/images/{}",
-        state.config.base_url,
+        "https://cdn-stv.adgrx.com/images/{}",
         picture_id.to_string()
     );
 
