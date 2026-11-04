@@ -45,11 +45,21 @@ pub async fn create_app(config: AppConfig) -> Result<(), Box<dyn std::error::Err
     shared_state.db.init_database()?;
 
     let app = Router::new()
+        // Frontend for managing the pictures
         .route("/", get(home_handler))
         .route("/images/", post(add_image_handler))
         .route("/images/{image_id}/delete", post(delete_image_handler))
         .route("/images/{image_id}", get(get_image_handler))
+
+        // This is the main route: the SmartHub calls this to get the top banner ad.
         .route("/impressions/title", get(impressions_title_handler))
+
+        // Since we are redirecting all adgrx.com requests to this server, we want to graciously
+        // handle all other paths that the TV seems to be hitting, just so the 404s don't prevent
+        // the TV from loading the adverts.
+        .route("/impressions/{*path}", get(blackhole_handler))
+        .route("/addopportunity/{*path}", get(blackhole_handler))
+        .route("/loads/{*path}", get(blackhole_handler))
         .with_state(Arc::clone(&shared_state));
 
     let listen = &shared_state.config.http_server;
@@ -253,4 +263,8 @@ async fn impressions_title_handler(
     });
 
     Ok(Json(response))
+}
+
+async fn blackhole_handler() -> Json<Value> {
+    return Json(Value::Object(serde_json::Map::default()))
 }
