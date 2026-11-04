@@ -2,3 +2,6 @@ target
 database.sqlite
 files/
 
+.env
+certs/
+
