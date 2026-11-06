@@ -3,7 +3,6 @@ use tracing_subscriber::{filter, fmt, prelude::*, reload};
 
 use clap::Parser;
 use samsung_tv_adspoofer::{cli, config, create_app};
-use tokio;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error>> {
@@ -15,9 +14,9 @@ async fn main() -> Result<(), Box<dyn Error>> {
     tracing::info!("Starting Samsung TV Ad Spoofer...");
 
     let args = cli::Args::parse();
-    let config = config::load_config(args).or_else(|e| {
+    let config = config::load_config(args).map_err(|e| {
         tracing::error!("Failed to load configuration: {:?}", e);
-        Err(e)
+        e
     })?;
 
     _ = reload.modify(|layer| *layer.filter_mut() = config.log_level.to_filter_level());

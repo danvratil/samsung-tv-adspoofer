@@ -21,11 +21,7 @@ pub async fn impressions_title_handler(
         Ok(None) => return Err(StatusCode::NO_CONTENT),
         Err(_) => return Err(StatusCode::INTERNAL_SERVER_ERROR),
     };
-    let image_url = format!(
-        "{}/images/{}",
-        state.config.base_url,
-        picture.id.to_string()
-    );
+    let image_url = format!("{}/images/{}", state.config.base_url, picture.id);
 
     let adid = format!(
         "{}-{}-{}-{}",
@@ -35,7 +31,7 @@ pub async fn impressions_title_handler(
         rand_adid(3)
     );
 
-    let guid = format!("{}-1", Uuid::new_v4().to_string());
+    let guid = format!("{}-1", Uuid::new_v4());
 
     let response = json!({
         "immersive_banner": [
@@ -102,7 +98,7 @@ pub async fn impressions_title_handler(
 }
 
 pub async fn blackhole_handler() -> Json<Value> {
-    return Json(Value::Object(serde_json::Map::default()));
+    Json(Value::Object(serde_json::Map::default()))
 }
 
 fn rand_adid(len: usize) -> String {
@@ -113,4 +109,3 @@ fn rand_adid(len: usize) -> String {
         .copied()
         .collect()
 }
-

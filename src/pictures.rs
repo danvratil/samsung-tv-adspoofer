@@ -5,7 +5,10 @@ use tokio::fs::{self, File};
 use tokio::io::AsyncWriteExt;
 use tracing::error;
 
-use crate::{AppState, database::{DatabaseError, Picture, PictureId}};
+use crate::{
+    AppState,
+    database::{DatabaseError, Picture, PictureId},
+};
 
 #[derive(Debug, Error)]
 pub enum PictureError {
@@ -22,12 +25,14 @@ pub struct Pictures<'a> {
 
 impl<'a> Pictures<'a> {
     pub fn new(state: Weak<AppState<'_>>) -> Pictures<'_> {
-        return Pictures { state };
+        Pictures { state }
     }
 
     pub async fn add_image(&self, name: &str, data: Vec<u8>) -> Result<(), PictureError> {
         let file_name = uuid::Uuid::new_v4().to_string();
-        let Some(state) = self.state.upgrade() else { return Ok(()); };
+        let Some(state) = self.state.upgrade() else {
+            return Ok(());
+        };
         let path = state.config.storage.image_storage_path.join(file_name);
 
         {
@@ -50,20 +55,23 @@ impl<'a> Pictures<'a> {
     }
 
     pub async fn get_random_picture(&self) -> Result<Option<Picture>, PictureError> {
-        let Some(state) = self.state.upgrade() else { return Ok(None); };
+        let Some(state) = self.state.upgrade() else {
+            return Ok(None);
+        };
         Ok(state.db.get_random_picture()?)
     }
 
     pub async fn delete_picture(&self, picture_id: PictureId) -> Result<(), PictureError> {
-        let Some(state) = self.state.upgrade() else { return Ok(()); };
+        let Some(state) = self.state.upgrade() else {
+            return Ok(());
+        };
         let Some(picture) = state.db.get_picture(picture_id)? else {
-            return Ok(())
+            return Ok(());
         };
 
         state.db.delete_picture(picture_id)?;
 
         fs::remove_file(picture.path).await?;
-
 
         Ok(())
     }

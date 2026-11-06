@@ -120,4 +120,3 @@ pub async fn get_image_handler(
         .body(Body::from_stream(stream))
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)
 }
-
