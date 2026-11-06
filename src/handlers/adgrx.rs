@@ -16,7 +16,7 @@ pub async fn impressions_title_handler(
         .duration_since(UNIX_EPOCH)
         .expect("Epoch must be valid");
     let expire = now + Duration::from_hours(1);
-    let picture = match state.db.get_random_picture() {
+    let picture = match state.pictures.get_random_picture().await {
         Ok(Some(picture)) => picture,
         Ok(None) => return Err(StatusCode::NO_CONTENT),
         Err(_) => return Err(StatusCode::INTERNAL_SERVER_ERROR),

@@ -1,4 +1,4 @@
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
 use std::path::Path;
 use thiserror::Error;
 use tracing::error;
@@ -22,20 +22,26 @@ pub struct Picture {
     pub name: String,
 }
 
-impl Picture {
-    pub fn from_row(row: sqlite::Row) -> Result<Picture, sqlite::Error> {
+impl TryFrom<sqlite::Row> for Picture {
+    type Error = sqlite::Error;
+
+    fn try_from(value: sqlite::Row) -> Result<Picture, Self::Error> {
         Ok(Picture {
-            id: PictureId(row.read::<i64, _>("id")),
-            path: row.read::<&str, _>("path").to_string(),
-            name: row.read::<&str, _>("name").to_string(),
+            id: PictureId(value.read::<i64, _>("id")),
+            path: value.read::<&str, _>("path").to_string(),
+            name: value.read::<&str, _>("name").to_string(),
         })
     }
+}
 
-    pub fn from_statement(stmt: sqlite::Statement<'_>) -> Result<Picture, sqlite::Error> {
+impl TryFrom<sqlite::Statement<'_>> for Picture {
+    type Error = sqlite::Error;
+
+    fn try_from(value: sqlite::Statement<'_>) -> Result<Picture, Self::Error> {
         Ok(Picture {
-            id: PictureId(stmt.read("id")?),
-            path: stmt.read("path")?,
-            name: stmt.read("name")?,
+            id: PictureId(value.read("id")?),
+            path: value.read("path")?,
+            name: value.read("name")?,
         })
     }
 }
@@ -116,7 +122,13 @@ impl Database {
             .conn
             .prepare("SELECT id, name, path FROM pictures ORDER BY id ASC")?
             .into_iter()
-            .filter_map(|row| row.map(Picture::from_row).map_err(|e| { error!("Invalid picture: {:?}", e); e }).ok())
+            .map(|row| match row {
+                Ok(row) => Picture::try_from(row),
+                Err(err) => {
+                    error!("Failed to read row from table: {:?}", err);
+                    Err(err)
+                }
+            })
             .collect::<Result<_, _>>()?)
     }
 
@@ -126,7 +138,10 @@ impl Database {
             .prepare("SELECT id, name, path FROM pictures ORDER BY RANDOM() LIMIT 1")?;
         match stmt.next()? {
             State::Done => Ok(None),
-            State::Row => Ok(Some(Picture::from_statement(stmt).map_err(|e| { error!("Invalid picture: {:?}", e); e })?)),
+            State::Row => Ok(Some(
+                stmt.try_into()
+                    .inspect_err(|err| error!("Invalid picture: {:?}", err))?,
+            )),
         }
     }
 }

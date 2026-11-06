@@ -49,7 +49,7 @@ impl<'a> Pictures<'a> {
         Ok(())
     }
 
-    pub async fn get_random_image(&self) -> Result<Option<Picture>, PictureError> {
+    pub async fn get_random_picture(&self) -> Result<Option<Picture>, PictureError> {
         let Some(state) = self.state.upgrade() else { return Ok(None); };
         Ok(state.db.get_random_picture()?)
     }
@@ -60,7 +60,10 @@ impl<'a> Pictures<'a> {
             return Ok(())
         };
 
+        state.db.delete_picture(picture_id)?;
+
         fs::remove_file(picture.path).await?;
+
 
         Ok(())
     }
