@@ -30,6 +30,14 @@ impl Picture {
             name: row.read::<&str, _>("name").to_string(),
         })
     }
+
+    pub fn from_statement(stmt: sqlite::Statement<'_>) -> Result<Picture, sqlite::Error> {
+        Ok(Picture {
+            id: PictureId(stmt.read("id")?),
+            path: stmt.read("path")?,
+            name: stmt.read("name")?,
+        })
+    }
 }
 
 pub struct Database {
@@ -112,13 +120,13 @@ impl Database {
             .collect::<Result<_, _>>()?)
     }
 
-    pub fn get_random_picture(&self) -> Result<Option<PictureId>, DatabaseError> {
+    pub fn get_random_picture(&self) -> Result<Option<Picture>, DatabaseError> {
         let mut stmt = self
             .conn
-            .prepare("SELECT id FROM pictures ORDER BY RANDOM() LIMIT 1")?;
+            .prepare("SELECT id, name, path FROM pictures ORDER BY RANDOM() LIMIT 1")?;
         match stmt.next()? {
             State::Done => Ok(None),
-            State::Row => Ok(Some(PictureId(stmt.read(0)?))),
+            State::Row => Ok(Some(Picture::from_statement(stmt).map_err(|e| { error!("Invalid picture: {:?}", e); e })?)),
         }
     }
 }
