@@ -4,4 +4,5 @@ files/
 
 .env
 certs/
+firmware/
 
