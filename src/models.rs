@@ -8,17 +8,23 @@ use anyhow::anyhow;
 use axum::body::Bytes;
 use axum_typed_multipart::{FieldMetadata, TryFromChunks, TypedMultipartError};
 use futures_util::Stream;
-use serde::{Serialize, Deserialize};
-
+use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Copy, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct Crop {
-    pub x: usize,
-    pub y: usize,
-    pub width: usize,
-    pub height: usize,
-    pub source_width: usize,
-    pub source_height: usize,
+    /// Fraction of the source image width
+    pub x: f64,
+    /// Fraction of the source image height
+    pub y: f64,
+    /// Fraction of the source image width
+    pub width: f64,
+    /// Fraction of the source image height
+    pub height: f64,
+    /// Width of the source image (in pixels)
+    pub source_width: u32,
+    /// Height of the source image (in pixels)
+    pub source_height: u32,
 }
 
 #[async_trait::async_trait]
@@ -33,7 +39,6 @@ impl TryFromChunks for Crop {
         })
     }
 }
-
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[repr(transparent)]
@@ -90,5 +95,5 @@ impl TryFrom<sqlite::Statement<'_>> for Picture {
 
 pub struct CroppedPicture {
     pub title_background: PathBuf,
-    pub fullscreen_video: PathBuf
+    pub fullscreen_video: PathBuf,
 }

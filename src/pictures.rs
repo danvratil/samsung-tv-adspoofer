@@ -12,14 +12,7 @@ use tempfile::NamedTempFile;
 use thiserror::Error;
 use tracing::error;
 
-use crate::{
-    AppState,
-    Crop,
-    CroppedPicture,
-    Picture,
-    PictureId,
-    database::DatabaseError
-};
+use crate::{AppState, Crop, CroppedPicture, Picture, PictureId, database::DatabaseError};
 
 mod postprocessing;
 
@@ -32,7 +25,7 @@ pub enum PictureError {
     IO(#[from] io::Error),
 
     #[error("Failed to post-process image: {0}")]
-    PostProcessing(Box<dyn std::error::Error>),
+    PostProcessing(#[from] postprocessing::PostProcessingError),
 }
 
 pub struct Pictures<'a> {
@@ -56,7 +49,7 @@ impl<'a> Pictures<'a> {
         let file_name = uuid::Uuid::new_v4().to_string();
         let path = state.config.storage.image_storage_path.join(file_name);
 
-        content.persist(&path).map_err(|err| err.error)?;
+        tokio::fs::copy(content.path(), &path).await?;
 
         Ok(state
             .db
@@ -88,7 +81,12 @@ impl<'a> Pictures<'a> {
         Ok(())
     }
 
-    pub async fn crop_picture(&self, picture: &Picture, title_crop: Crop, fullscreen_crop: Crop) -> Result<CroppedPicture, PictureError> {
+    pub async fn crop_picture(
+        &self,
+        picture: &Picture,
+        title_crop: Crop,
+        fullscreen_crop: Crop,
+    ) -> Result<CroppedPicture, PictureError> {
         let Some(state) = self.state.upgrade() else {
             return state_unavailable_error();
         };
@@ -101,32 +99,24 @@ impl<'a> Pictures<'a> {
             )));
         };
 
-        let base_path = &state.config.storage.image_storage_path;
-        let title_path = base_path
-            .join("crop")
-            .join(format!("{}_background", orig_filename));
-        let video_path = base_path
-            .join("crop")
-            .join(format!("{}_video", orig_filename));
+        let crop_dir = state.config.storage.image_storage_path.join("crop");
+        fs::create_dir_all(&crop_dir).await?;
+        let title_path = crop_dir.join(format!("{}_background", orig_filename));
+        let video_path = crop_dir.join(format!("{}_video", orig_filename));
 
-        let (title, fullscreen) = tokio::join!(
-            postprocessing::crop_title_picture(orig_path, &title_path, title_crop),
-            postprocessing::render_transition_video(orig_path,  &video_path, fullscreen_crop)
-        );
-
-        if let Err(title_err) = title {
-            error!("Failed to crop title picture: {:?}", title_err);
-            return Err(PictureError::PostProcessing(Box::new(title_err)));
-        };
-
-        if let Err(fullscreen_err) = fullscreen {
-            error!("Failed to generate fullscreen transition video: {:?}", fullscreen_err);
-            return Err(PictureError::PostProcessing(Box::new(fullscreen_err)));
-        }
+        postprocessing::process_picture(
+            orig_path,
+            title_crop,
+            &title_path,
+            fullscreen_crop,
+            &video_path,
+        )
+        .await
+        .inspect_err(|err| error!("Failed to post-process picture: {:?}", err))?;
 
         Ok(CroppedPicture {
             title_background: title_path,
-            fullscreen_video: video_path
+            fullscreen_video: video_path,
         })
     }
 }
