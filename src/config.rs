@@ -1,3 +1,7 @@
+// SPDX-FileCopyrightText: 2026 Daniel Vrátil <me@dvratil.cz>
+//
+// SPDX-License-Identifier: MIT
+
 use config::Config;
 use std::path::PathBuf;
 use tracing::level_filters::LevelFilter;

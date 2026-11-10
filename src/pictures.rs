@@ -1,3 +1,7 @@
+// SPDX-FileCopyrightText: 2026 Daniel Vrátil <me@dvratil.cz>
+//
+// SPDX-License-Identifier: MIT
+
 use std::io;
 use std::sync::Weak;
 use std::{fs::File, path::Path};

@@ -1,3 +1,7 @@
+// SPDX-FileCopyrightText: 2026 Daniel Vrátil <me@dvratil.cz>
+//
+// SPDX-License-Identifier: MIT
+
 use std::error::Error;
 use tracing_subscriber::{filter, fmt, prelude::*, reload};
 

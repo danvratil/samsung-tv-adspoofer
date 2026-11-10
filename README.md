@@ -33,3 +33,4 @@ docker compose up -d --build
 
 To force your TV to talk to the AdSpoofer instead of real adgrx.com, you can use simple DNS redirection. If you are running Pihole, custom DNS server, or your router allows specifying custom DNS rules, just configure it to resolve `*.adgrx.com` to the IP address of the device where you are running the AdSpoofer.
 
+
