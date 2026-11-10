@@ -23,7 +23,10 @@ pub mod cli;
 pub mod config;
 mod database;
 mod handlers;
+mod models;
 mod pictures;
+
+pub use models::{Crop, Picture, PictureId, CroppedPicture};
 
 pub struct AppState<'a> {
     db: Database,

@@ -1,10 +1,11 @@
 use std::sync::Arc;
 
-use axum::body::{Body, Bytes};
-use axum::extract::{Multipart, Path, State};
+use axum::body::Body;
+use axum::extract::{Path, State};
 use axum::http::{Response, StatusCode};
 use axum::response::Redirect;
 
+use axum_typed_multipart::{FieldData, TryFromMultipart, TypedMultipart};
 use minijinja::context;
 
 use tokio_util::io::ReaderStream;
@@ -13,7 +14,7 @@ use tracing::error;
 use tokio::fs::File;
 
 use crate::AppState;
-use crate::database::PictureId;
+use crate::{Crop, PictureId};
 
 pub async fn home_handler(State(state): State<Arc<AppState<'_>>>) -> Result<Body, StatusCode> {
     let pictures = state.db.get_pictures().map_err(|e| {
@@ -37,49 +38,36 @@ pub async fn home_handler(State(state): State<Arc<AppState<'_>>>) -> Result<Body
     Ok(Body::from(content))
 }
 
+#[derive(TryFromMultipart)]
+pub struct AddImageForm {
+    name: String,
+    file: FieldData<tempfile::NamedTempFile>,
+    collapsed_crop: Crop,
+    fullscreen_crop: Crop,
+}
+
 pub async fn add_image_handler(
     State(state): State<Arc<AppState<'_>>>,
-    mut multipart: Multipart,
+    TypedMultipart(form): TypedMultipart<AddImageForm>,
 ) -> Result<Redirect, StatusCode> {
-    let mut picture_name: Option<String> = None;
-    let mut file_data: Option<Bytes> = None;
-    let mut file_name: Option<String> = None;
-
-    while let Some(field) = multipart.next_field().await.unwrap() {
-        let name = field.name().unwrap().to_string();
-        match name.as_str() {
-            "name" => {
-                picture_name = Some(field.text().await.unwrap());
-            }
-            "file" => {
-                file_name = Some(field.file_name().unwrap().to_string());
-                file_data = Some(field.bytes().await.unwrap());
-            }
-            _ => {}
-        }
-    }
-
-    let Some(file_name) = file_name else {
-        error!("Missing file name in form request");
-        return Err(StatusCode::BAD_REQUEST);
-    };
-
-    let Some(file_data) = file_data else {
-        error!("Missing file data in form request");
-        return Err(StatusCode::BAD_REQUEST);
-    };
-
-    let picture_name = match picture_name {
-        Some(picture_name) => picture_name,
-        None => file_name,
-    };
-
-    if state
+    let picture = match state
         .pictures
-        .add_image(&picture_name, file_data.to_vec())
+        .add_picture(&form.name, form.file.contents)
         .await
-        .is_err()
     {
+        Ok(picture) => picture,
+        Err(err) => {
+            error!("Failed to upload picture: {:?}", err);
+            return Err(StatusCode::INTERNAL_SERVER_ERROR);
+        }
+    };
+
+    if let Err(err) = state
+        .pictures
+        .crop_picture(&picture, form.collapsed_crop, form.fullscreen_crop)
+        .await
+    {
+        error!("Failed to crop uploaded pictures: {:?}", err);
         return Err(StatusCode::INTERNAL_SERVER_ERROR);
     }
 

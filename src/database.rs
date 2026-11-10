@@ -1,50 +1,10 @@
-use serde::{Deserialize, Serialize};
 use std::path::Path;
 use thiserror::Error;
 use tracing::error;
 
 use sqlite::{Connection, ConnectionThreadSafe, State};
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
-#[repr(transparent)]
-pub struct PictureId(i64);
-
-impl std::fmt::Display for PictureId {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.write_str(&self.0.to_string())
-    }
-}
-
-#[derive(Debug, Clone, Serialize)]
-pub struct Picture {
-    pub id: PictureId,
-    pub path: String,
-    pub name: String,
-}
-
-impl TryFrom<sqlite::Row> for Picture {
-    type Error = sqlite::Error;
-
-    fn try_from(value: sqlite::Row) -> Result<Picture, Self::Error> {
-        Ok(Picture {
-            id: PictureId(value.read::<i64, _>("id")),
-            path: value.read::<&str, _>("path").to_string(),
-            name: value.read::<&str, _>("name").to_string(),
-        })
-    }
-}
-
-impl TryFrom<sqlite::Statement<'_>> for Picture {
-    type Error = sqlite::Error;
-
-    fn try_from(value: sqlite::Statement<'_>) -> Result<Picture, Self::Error> {
-        Ok(Picture {
-            id: PictureId(value.read("id")?),
-            path: value.read("path")?,
-            name: value.read("name")?,
-        })
-    }
-}
+use crate::{Picture, PictureId};
 
 pub struct Database {
     conn: ConnectionThreadSafe,
@@ -87,7 +47,7 @@ impl Database {
         match stmt.next()? {
             State::Done => Err(DatabaseError::InsertFailed),
             State::Row => Ok(Picture {
-                id: PictureId(stmt.read(0)?),
+                id: stmt.read::<i64, _>(0)?.into(),
                 name: name.to_string(),
                 path: path.to_string(),
             }),
@@ -96,7 +56,7 @@ impl Database {
 
     pub fn delete_picture(&self, id: PictureId) -> Result<(), DatabaseError> {
         let mut stmt = self.conn.prepare("DELETE FROM pictures WHERE id = :id")?;
-        stmt.bind::<(_, i64)>((":id", id.0))?;
+        stmt.bind::<(_, i64)>((":id", id.into()))?;
         stmt.next()?;
 
         Ok(())
@@ -106,11 +66,11 @@ impl Database {
         let mut stmt = self
             .conn
             .prepare("SELECT id, name, path FROM pictures WHERE id = :id")?;
-        stmt.bind::<(_, i64)>((":id", picture_id.0))?;
+        stmt.bind::<(_, i64)>((":id", picture_id.into()))?;
         match stmt.next()? {
             State::Done => Ok(None),
             State::Row => Ok(Some(Picture {
-                id: PictureId(stmt.read(0)?),
+                id: stmt.read::<i64, _>(0)?.into(),
                 name: stmt.read(1)?,
                 path: stmt.read(2)?,
             })),

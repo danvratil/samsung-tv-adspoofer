@@ -1,48 +1,229 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Samsung TV AdSpoofer</title>
   <style>
-    .heading {
-
-    }
-    .upload {
-
-    }
-    .gallery {
-        display: flex;
-    }
-
-    .gallery .image {
-        max-width: 300px;
-        width: 300px;
-    }
-
+    :root { font-family: system-ui, sans-serif; color: #192333; background: #f4f6f9; }
+    * { box-sizing: border-box; }
+    body { max-width: 1200px; margin: auto; padding: 24px; }
+    h1 { margin-top: 0; }
+    h2 { margin: 0 0 12px; }
+    h3 { margin: 0 0 6px; }
+    p { line-height: 1.45; }
+    .panel { background: white; border: 1px solid #dce2ea; border-radius: 14px; padding: 20px; margin-bottom: 24px; }
+    .fields, .controls, .actions { display: flex; align-items: center; flex-wrap: wrap; gap: 12px; }
+    .fields { align-items: end; }
+    .field { flex: 1; min-width: 220px; display: grid; gap: 6px; }
+    label { font-weight: 600; }
+    input[type="text"], input[type="file"] { width: 100%; padding: 9px; border: 1px solid #adb9c9; border-radius: 8px; }
+    input[type="range"] { flex: 1; min-width: 90px; }
+    button { padding: 9px 14px; border: 0; border-radius: 8px; background: #1c5dbc; color: white; font: inherit; font-weight: 600; cursor: pointer; }
+    button:hover { background: #174e9e; }
+    button.secondary { background: #e8edf5; color: #192333; }
+    .hint, .status, .crop-card p { color: #536276; }
+    .status { font-size: .9rem; }
+    #crop-editor[hidden] { display: none; }
+    #crop-editor { margin-top: 20px; padding-top: 18px; border-top: 1px solid #dce2ea; }
+    .crop-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; }
+    .crop-card { min-width: 0; background: #fafbfd; border: 1px solid #dce2ea; border-radius: 12px; padding: 14px; }
+    .crop-card p { margin: 0 0 12px; }
+    .preview { position: relative; width: 100%; aspect-ratio: 16 / 9; overflow: hidden; border-radius: 8px; background: #1c2635; touch-action: none; }
+    canvas { display: block; width: 100%; height: 100%; cursor: grab; touch-action: none; }
+    canvas.dragging { cursor: grabbing; }
+    canvas:focus-visible { outline: 3px solid #ffcb65; outline-offset: -3px; }
+    .home-cover { position: absolute; inset: var(--visible-band, 25%) 0 0; border-top: 2px solid #ffcb65; background: #101b2bdc; color: white; text-align: center; padding: 12px; pointer-events: none; }
+    .controls { margin-top: 12px; }
+    .guide { max-width: 480px; margin-top: 18px; }
+    .actions { margin-top: 18px; }
+    .gallery { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 18px; }
+    .gallery img { display: block; width: 100%; aspect-ratio: 16 / 9; object-fit: cover; border-radius: 8px; background: #e8edf5; }
+    .image-name { display: block; margin: 8px 0; overflow-wrap: anywhere; }
+    @media (max-width: 760px) { body { padding: 14px; } .crop-grid { grid-template-columns: 1fr; } }
   </style>
 </head>
 <body>
-  <div class="heading">
-    <h1>Samsung TV AdSpoofer</h1>
-  </div>
-  <div class="upload">
-    <form method="POST" action="/images/" enctype="multipart/form-data">
-      <label for="file">Picture:</label>
-      <input type="file" name="file" accept="image/*" id="file" />
-
-      <label for="name">Name (optional):</label>
-      <input type="text" name="name" id="name" />
-
-      <button type="submit">Upload</button>
+  <h1>Samsung TV AdSpoofer</h1>
+  <section class="panel">
+    <h2>Upload a picture</h2>
+    <form method="POST" action="/images/" enctype="multipart/form-data" id="upload-form">
+      <div class="fields">
+        <div class="field"><label for="file">Picture</label><input type="file" name="file" accept="image/*" id="file" required></div>
+        <div class="field"><label for="name">Name (optional)</label><input type="text" name="name" id="name"></div>
+      </div>
+      <div id="crop-editor" hidden>
+        <p class="hint">Drag each image to position it. Use Zoom to adjust the crop. The two views are independent.</p>
+        <div class="crop-grid">
+          <section class="crop-card">
+            <h3>Home preview</h3>
+            <p>Position faces above the yellow line so they are visible before the ad expands.</p>
+            <div class="preview" id="collapsed-preview">
+              <canvas id="collapsed-canvas" width="960" height="540" tabindex="0" aria-label="Home preview crop. Drag or use arrow keys to reposition."></canvas>
+              <div class="home-cover">Covered by Home UI</div>
+            </div>
+            <div class="controls"><label for="collapsed-zoom">Zoom</label><input type="range" id="collapsed-zoom" min="0.25" max="4" step="0.01" value="1"><button type="button" class="secondary" id="collapsed-reset">Reset</button></div>
+          </section>
+          <section class="crop-card">
+            <h3>Full-screen view</h3>
+            <p>Choose the framing to show after the ad is highlighted.</p>
+            <div class="preview"><canvas id="fullscreen-canvas" width="960" height="540" tabindex="0" aria-label="Full-screen crop. Drag or use arrow keys to reposition."></canvas></div>
+            <div class="controls"><label for="fullscreen-zoom">Zoom</label><input type="range" id="fullscreen-zoom" min="1" max="4" step="0.01" value="1"><button type="button" class="secondary" id="fullscreen-reset">Reset</button></div>
+          </section>
+        </div>
+        <div class="controls guide"><label for="visible-band">Visible Home area</label><input type="range" id="visible-band" min="15" max="50" step="1" value="25"><output id="visible-band-value" for="visible-band">25%</output></div>
+        <p class="status">Zooming out adds black space around the Home image. The yellow line is an adjustable guide; the TV's exact visible height is unknown.</p>
+      </div>
+      <input type="hidden" name="collapsed_crop" id="collapsed-crop">
+      <input type="hidden" name="fullscreen_crop" id="fullscreen-crop">
+      <div class="actions"><button type="submit">Upload</button><span class="status">The current server saves the original picture. These crop coordinates are submitted for future image and video generation.</span></div>
     </form>
-  </div>
-
-  <div class="gallery">
-  {% for picture in pictures %}
-    <div class="image">
-      <img src="/images/{{ picture.id }}" width="320" />
-      {{ picture.name }} <form method="POST" action="images/{{ picture.id }}/delete"><button type="submit">Delete</button></form>
+  </section>
+  <section class="panel">
+    <h2>Pictures</h2>
+    <div class="gallery">
+    {% for picture in pictures %}
+      <div class="image">
+        <img src="/images/{{ picture.id }}" alt="{{ picture.name }}" loading="lazy">
+        <strong class="image-name">{{ picture.name }}</strong>
+        <form method="POST" action="/images/{{ picture.id }}/delete"><button type="submit" class="secondary">Delete</button></form>
+      </div>
+    {% endfor %}
     </div>
-  {% endfor %}
-  </div>
+  </section>
+  <script>
+    (() => {
+      const fileInput = document.getElementById('file');
+      const editor = document.getElementById('crop-editor');
+      const image = new Image();
+      let objectUrl = null;
+      let loaded = false;
+      const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
+      const clampOffset = (offset, size) => size <= 1
+        ? clamp(offset, 0, 1 - size)
+        : clamp(offset, 1 - size, 0);
+      const round = value => Math.round(value * 1000000) / 1000000;
+
+      function makeCropper(name) {
+        const canvas = document.getElementById(`${name}-canvas`);
+        const zoomControl = document.getElementById(`${name}-zoom`);
+        const output = document.getElementById(`${name}-crop`);
+        const context = canvas.getContext('2d');
+        let crop = null, baseWidth = 1, baseHeight = 1, drag = null;
+        function draw() {
+          if (!loaded || !crop) return;
+          context.fillStyle = '#000';
+          context.fillRect(0, 0, canvas.width, canvas.height);
+          const left = Math.max(0, crop.x), top = Math.max(0, crop.y);
+          const right = Math.min(1, crop.x + crop.width);
+          const bottom = Math.min(1, crop.y + crop.height);
+          if (right > left && bottom > top) {
+            context.drawImage(image,
+              left * image.naturalWidth, top * image.naturalHeight,
+              (right - left) * image.naturalWidth, (bottom - top) * image.naturalHeight,
+              (left - crop.x) / crop.width * canvas.width,
+              (top - crop.y) / crop.height * canvas.height,
+              (right - left) / crop.width * canvas.width,
+              (bottom - top) / crop.height * canvas.height);
+          }
+          // Fractions refer to the browser-oriented image. Normalize EXIF orientation before using them on the server.
+          output.value = JSON.stringify({ x: round(crop.x), y: round(crop.y),
+            width: round(crop.width), height: round(crop.height),
+            sourceWidth: image.naturalWidth, sourceHeight: image.naturalHeight });
+        }
+        function reset() {
+          if (!loaded) return;
+          const ratio = (image.naturalWidth / image.naturalHeight) / (canvas.width / canvas.height);
+          baseWidth = Math.min(1, 1 / ratio);
+          baseHeight = Math.min(1, ratio);
+          crop = { x: (1 - baseWidth) / 2, y: (1 - baseHeight) / 2,
+            width: baseWidth, height: baseHeight };
+          zoomControl.value = '1';
+          draw();
+        }
+        function zoom() {
+          if (!crop) return;
+          const centerX = crop.x + crop.width / 2, centerY = crop.y + crop.height / 2;
+          const factor = Number(zoomControl.value);
+          crop.width = baseWidth / factor;
+          crop.height = baseHeight / factor;
+          crop.x = clampOffset(centerX - crop.width / 2, crop.width);
+          crop.y = clampOffset(centerY - crop.height / 2, crop.height);
+          draw();
+        }
+        function move(dx, dy) {
+          if (!crop) return;
+          crop.x = clampOffset(crop.x - dx * crop.width, crop.width);
+          crop.y = clampOffset(crop.y - dy * crop.height, crop.height);
+          draw();
+        }
+        canvas.addEventListener('pointerdown', event => {
+          if (!crop) return;
+          canvas.setPointerCapture(event.pointerId);
+          canvas.classList.add('dragging');
+          drag = { x: event.clientX, y: event.clientY };
+        });
+        canvas.addEventListener('pointermove', event => {
+          if (!drag) return;
+          const rect = canvas.getBoundingClientRect();
+          move((event.clientX - drag.x) / rect.width, (event.clientY - drag.y) / rect.height);
+          drag = { x: event.clientX, y: event.clientY };
+        });
+        const stopDrag = () => { drag = null; canvas.classList.remove('dragging'); };
+        canvas.addEventListener('pointerup', stopDrag);
+        canvas.addEventListener('pointercancel', stopDrag);
+        canvas.addEventListener('lostpointercapture', stopDrag);
+        canvas.addEventListener('keydown', event => {
+          const step = event.shiftKey ? 0.05 : 0.01;
+          const directions = { ArrowLeft: [step, 0], ArrowRight: [-step, 0],
+            ArrowUp: [0, step], ArrowDown: [0, -step] };
+          if (!directions[event.key]) return;
+          event.preventDefault();
+          move(...directions[event.key]);
+        });
+        zoomControl.addEventListener('input', zoom);
+        document.getElementById(`${name}-reset`).addEventListener('click', reset);
+        return { reset, clear: () => { crop = null; output.value = ''; } };
+      }
+
+      const collapsed = makeCropper('collapsed');
+      const fullscreen = makeCropper('fullscreen');
+      fileInput.addEventListener('change', () => {
+        loaded = false;
+        editor.hidden = true;
+        collapsed.clear();
+        fullscreen.clear();
+        if (objectUrl) URL.revokeObjectURL(objectUrl);
+        const file = fileInput.files[0];
+        if (!file) return;
+        objectUrl = URL.createObjectURL(file);
+        image.onload = () => {
+          if (!image.naturalWidth || !image.naturalHeight) return;
+          loaded = true;
+          fileInput.setCustomValidity('');
+          editor.hidden = false;
+          collapsed.reset();
+          fullscreen.reset();
+        };
+        image.onerror = () => {
+          fileInput.setCustomValidity('Choose an image that can be previewed.');
+          fileInput.reportValidity();
+        };
+        fileInput.setCustomValidity('');
+        image.src = objectUrl;
+      });
+      const visibleBand = document.getElementById('visible-band');
+      visibleBand.addEventListener('input', () => {
+        document.getElementById('collapsed-preview').style.setProperty('--visible-band', `${visibleBand.value}%`);
+        document.getElementById('visible-band-value').value = `${visibleBand.value}%`;
+      });
+      document.getElementById('upload-form').addEventListener('submit', event => {
+        if (loaded) return;
+        event.preventDefault();
+        fileInput.setCustomValidity('Wait for the image preview to load.');
+        fileInput.reportValidity();
+      });
+    })();
+  </script>
 </body>
 </html>
