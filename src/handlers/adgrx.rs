@@ -25,7 +25,9 @@ pub async fn impressions_title_handler(
         Ok(None) => return Err(StatusCode::NO_CONTENT),
         Err(_) => return Err(StatusCode::INTERNAL_SERVER_ERROR),
     };
-    let image_url = format!("{}/images/{}", state.config.base_url, picture.id);
+
+    let image_url = format!("{}/images/{}/background", state.config.base_url, picture.id);
+    //let video_url = format!("{}/images/{}/video", state.config.base_url, picture.id);
 
     let adid = format!(
         "{}-{}-{}-{}",
@@ -75,8 +77,8 @@ pub async fn impressions_title_handler(
                         "autoplay": {
                             "video": {
                                 "vast": "https:\\/\\/rtb.adgrx.com\\/loads\\/6hq-aTIRt5KhZKCWChCldCRd6wBKNKZR2qkOwpOeEgExGAYgVigBMPPDKTj49ydABkiY8gFgAWgHeALAAQHIAYID0gELQURHMTAzNDdTQU3aAQMxMDPlAYOlUW3oAQDwAQCKAhFjb20uc2Ftc3VuZ3R2LmFkc9ICOHJ0Yi1iaWRkZXItcHJvZC1ldXcxLWRzcC1wcm9kLWV1LXdlc3QtMWEtOWQ5ZGZkOTc4LThxdzh62gIoCAMSJGQ3ODVlMmRiLWQ2ODctMzkzNy1hNjk3LTIwYjUxMzhkYzI1OOgC4cGy1waIAwGQAwKYA2eoAwG4A_HOBsAD5g_KAwVOSUtFTOIDCTIyLjYuMzEyOKIEAkNaqgQEdGlsZbIEDDIyX05JS0VMX1VIRLoEE1QtSU5GT0xJTksyMDIyLTEwMjXCBAEg-AQAkAUCmAUAsgUDMjYwugUCODbABQHIBQLaBXNNb3ppbGxhLzUuMCAoU01BUlQtVFY7IExpbnV4OyBUaXplbiA2LjUpIEFwcGxlV2ViS2l0LzUzOC4xIChLSFRNTCwgbGlrZSBHZWNrbykgVmVyc2lvbi82LjUgTmF0aXZlVFZBZHMgU2FmYXJpLzUzOC4x4gURVC1OS0xCREVVQy0xNzIwLjfoBQLxBc3MzMzMzBJAigYNUUU2NVE2MEJBVVhYSA==\\/654328.xml?AG_WP=0.014003&AG_IT=0&AG_VV=3.0&AG_TID=1222896&AG_APP=3202203026693&IMVID=1&tile_pos=1",
-                                "videourl": "https://d3188bz1xcsvdh.cloudfront.net/trader/eb185c0f-44c4-45e1-9a75-31b841525d06/transcoded_1920x1080_Samsung_TV_16x9_CZ_1920x1080MP4.mp4"
-                            }
+                                "videourl": video_url,
+                            },
                         },
                         */
                         // We can't keep those entirely empty, otherwise the ad doesn't display

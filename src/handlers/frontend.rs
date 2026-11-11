@@ -2,6 +2,7 @@
 //
 // SPDX-License-Identifier: MIT
 
+use std::path::PathBuf;
 use std::sync::Arc;
 
 use axum::body::Body;
@@ -101,14 +102,58 @@ pub async fn get_image_handler(
         }
     };
 
-    let file = File::open(&path).await.map_err(|e| {
+   let file = File::open(&path).await.map_err(|e| {
         error!("Could not open image file at path {:?}: {:?}", path, e);
         StatusCode::NOT_FOUND
     })?;
     let stream = ReaderStream::new(file);
 
     Response::builder()
-        .header("Content-Type", "image/jpeg")
+        .header("Content-Type", "image/jpeg") 
+        .body(Body::from_stream(stream))
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)
+}
+
+pub async fn get_image_kind_handler(
+    Path((image_id, kind)): Path<(PictureId, String)>,
+    State(state): State<Arc<AppState<'_>>>,
+) -> Result<Response<Body>, StatusCode> {
+    let path = match state.db.get_picture(image_id) {
+        Ok(Some(picture)) => PathBuf::from(picture.path),
+        Ok(None) => return Err(StatusCode::NOT_FOUND),
+        Err(e) => {
+            error!("Failed to get picture from database: {:?}", e);
+            return Err(StatusCode::INTERNAL_SERVER_ERROR);
+        }
+    };
+
+    let final_path = path
+        .parent()
+        .expect("Path must have a parent")
+        .join("crop")
+        .join(format!(
+            "{}_{}",
+            path.file_name()
+                .expect("path must have a filename")
+                .to_str()
+                .expect("Filename must be valid string"),
+            kind
+        ));
+
+    let file = File::open(&final_path).await.map_err(|e| {
+        error!("Could not open image file at path {:?}: {:?}", final_path, e);
+        StatusCode::NOT_FOUND
+    })?;
+    let stream = ReaderStream::new(file);
+
+    let mime_type = if kind == "background" {
+        "image/jpeg"
+    } else {
+        "video/mp4"
+    };
+
+    Response::builder()
+        .header("Content-Type", mime_type)
         .body(Body::from_stream(stream))
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)
 }
