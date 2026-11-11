@@ -32,4 +32,8 @@ cargo run --release
 
 To force your TV to talk to the AdSpoofer instead of real `adgrx.co`m, you can use simple DNS redirection. If you are running Pihole, custom DNS server, or your router allows specifying custom DNS rules, just configure it to resolve `*.adgrx.com` to the IP address of the device where you are running the AdSpoofer.
 
+# Frontend
 
+Visit the address on which the service listens to access a simple frontend that lets you upload pictures to display instead of ads.
+
+![Screenshot of the administrative frontend for AdSpoofer](./media/frontend.png)
