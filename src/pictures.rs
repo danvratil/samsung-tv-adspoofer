@@ -85,7 +85,6 @@ impl<'a> Pictures<'a> {
         &self,
         picture: &Picture,
         title_crop: Crop,
-        fullscreen_crop: Crop,
     ) -> Result<CroppedPicture, PictureError> {
         let Some(state) = self.state.upgrade() else {
             return state_unavailable_error();
@@ -101,22 +100,18 @@ impl<'a> Pictures<'a> {
 
         let crop_dir = state.config.storage.image_storage_path.join("crop");
         fs::create_dir_all(&crop_dir).await?;
-        let title_path = crop_dir.join(format!("{}_background", orig_filename));
-        let video_path = crop_dir.join(format!("{}_video", orig_filename));
+        let title_path = crop_dir.join(orig_filename);
 
         postprocessing::process_picture(
             orig_path,
             title_crop,
             &title_path,
-            fullscreen_crop,
-            &video_path,
         )
         .await
         .inspect_err(|err| error!("Failed to post-process picture: {:?}", err))?;
 
         Ok(CroppedPicture {
             title_background: title_path,
-            fullscreen_video: video_path,
         })
     }
 }

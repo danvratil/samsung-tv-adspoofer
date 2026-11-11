@@ -64,18 +64,11 @@
             </div>
             <div class="controls"><label for="collapsed-zoom">Zoom</label><input type="range" id="collapsed-zoom" min="0.25" max="4" step="0.01" value="1"><button type="button" class="secondary" id="collapsed-reset">Reset</button></div>
           </section>
-          <section class="crop-card">
-            <h3>Full-screen view</h3>
-            <p>Choose the framing to show after the ad is highlighted.</p>
-            <div class="preview"><canvas id="fullscreen-canvas" width="960" height="540" tabindex="0" aria-label="Full-screen crop. Drag or use arrow keys to reposition."></canvas></div>
-            <div class="controls"><label for="fullscreen-zoom">Zoom</label><input type="range" id="fullscreen-zoom" min="1" max="4" step="0.01" value="1"><button type="button" class="secondary" id="fullscreen-reset">Reset</button></div>
-          </section>
         </div>
-        <div class="controls guide"><label for="visible-band">Visible Home area</label><input type="range" id="visible-band" min="15" max="50" step="1" value="25"><output id="visible-band-value" for="visible-band">25%</output></div>
+        <div class="controls guide"><label for="visible-band">Visible Home area</label><input type="range" id="visible-band" min="15" max="50" step="1" value="40"><output id="visible-band-value" for="visible-band">25%</output></div>
         <p class="status">Zooming out adds black space around the Home image. The yellow line is an adjustable guide; the TV's exact visible height is unknown.</p>
       </div>
       <input type="hidden" name="collapsed_crop" id="collapsed-crop">
-      <input type="hidden" name="fullscreen_crop" id="fullscreen-crop">
       <div class="actions"><button type="submit">Upload</button><span class="status">The current server saves the original picture. These crop coordinates are submitted for future image and video generation.</span></div>
     </form>
   </section>
@@ -187,12 +180,10 @@
       }
 
       const collapsed = makeCropper('collapsed');
-      const fullscreen = makeCropper('fullscreen');
       fileInput.addEventListener('change', () => {
         loaded = false;
         editor.hidden = true;
         collapsed.clear();
-        fullscreen.clear();
         if (objectUrl) URL.revokeObjectURL(objectUrl);
         const file = fileInput.files[0];
         if (!file) return;
@@ -203,7 +194,6 @@
           fileInput.setCustomValidity('');
           editor.hidden = false;
           collapsed.reset();
-          fullscreen.reset();
         };
         image.onerror = () => {
           fileInput.setCustomValidity('Choose an image that can be previewed.');

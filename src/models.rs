@@ -95,5 +95,4 @@ impl TryFrom<sqlite::Statement<'_>> for Picture {
 
 pub struct CroppedPicture {
     pub title_background: PathBuf,
-    pub fullscreen_video: PathBuf,
 }

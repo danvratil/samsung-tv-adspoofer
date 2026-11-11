@@ -95,8 +95,8 @@ pub async fn create_app(config: AppConfig) -> Result<(), Box<dyn std::error::Err
             get(handlers::frontend::get_image_handler),
         )
         .route(
-            "/images/{image_id}/{kind}",
-            get(handlers::frontend::get_image_kind_handler),
+            "/images/{image_id}/cropped",
+            get(handlers::frontend::get_cropped_image_handler),
         )
         // This is the main route: the SmartHub calls this to get the top banner ad.
         .route(

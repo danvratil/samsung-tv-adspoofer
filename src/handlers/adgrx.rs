@@ -26,8 +26,7 @@ pub async fn impressions_title_handler(
         Err(_) => return Err(StatusCode::INTERNAL_SERVER_ERROR),
     };
 
-    let image_url = format!("{}/images/{}/background", state.config.base_url, picture.id);
-    //let video_url = format!("{}/images/{}/video", state.config.base_url, picture.id);
+    let image_url = format!("{}/images/{}/cropped", state.config.base_url, picture.id);
 
     let adid = format!(
         "{}-{}-{}-{}",

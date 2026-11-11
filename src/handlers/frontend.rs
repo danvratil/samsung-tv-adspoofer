@@ -48,7 +48,6 @@ pub struct AddImageForm {
     name: String,
     file: FieldData<tempfile::NamedTempFile>,
     collapsed_crop: Crop,
-    fullscreen_crop: Crop,
 }
 
 pub async fn add_image_handler(
@@ -69,7 +68,7 @@ pub async fn add_image_handler(
 
     if let Err(err) = state
         .pictures
-        .crop_picture(&picture, form.collapsed_crop, form.fullscreen_crop)
+        .crop_picture(&picture, form.collapsed_crop)
         .await
     {
         error!("Failed to crop uploaded pictures: {:?}", err);
@@ -114,8 +113,8 @@ pub async fn get_image_handler(
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)
 }
 
-pub async fn get_image_kind_handler(
-    Path((image_id, kind)): Path<(PictureId, String)>,
+pub async fn get_cropped_image_handler(
+    Path(image_id): Path<PictureId>,
     State(state): State<Arc<AppState<'_>>>,
 ) -> Result<Response<Body>, StatusCode> {
     let path = match state.db.get_picture(image_id) {
@@ -131,14 +130,7 @@ pub async fn get_image_kind_handler(
         .parent()
         .expect("Path must have a parent")
         .join("crop")
-        .join(format!(
-            "{}_{}",
-            path.file_name()
-                .expect("path must have a filename")
-                .to_str()
-                .expect("Filename must be valid string"),
-            kind
-        ));
+        .join(path.file_name().expect("path must have a filename"));
 
     let file = File::open(&final_path).await.map_err(|e| {
         error!(
@@ -149,14 +141,8 @@ pub async fn get_image_kind_handler(
     })?;
     let stream = ReaderStream::new(file);
 
-    let mime_type = if kind == "background" {
-        "image/jpeg"
-    } else {
-        "video/mp4"
-    };
-
     Response::builder()
-        .header("Content-Type", mime_type)
+        .header("Content-Type", "image/jpeg")
         .body(Body::from_stream(stream))
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)
 }
