@@ -15,22 +15,21 @@ Also, as of today (2026-11-05) Samsung hasn't yet published a firmware update to
 Getting this to work consist of two steps:
 
 1) running the adspoofer service
-2) redirecting the *.adgrx.com requests to the service
+2) redirecting the `*.adgrx.com` requests to the service
 
-For running, the easiest solution is to use docker compose. The compose file is already present, all you need to do is to supply "fake" wildcard certificate for `*.adgrx.com`, signed by one of the "compromised" eMudrha CA keys. Use your faviourite search engine to find to generate the such certificates.
+To run the AdSpoofer service, you need to supply a fake wildcard certificate for `*.adgrx.com` domain, signed by one of the "compromised" eMudhra CA certificates. Use your favourite search engine to find and generate such certificates.
 
 Create a `certs/` directory and supply:
 
-- `certs/fullchain.pem`: a PEM certificate and its intermediate chain, with
-  the `*.adgrx.com` wildcard.
-- `certs/privkey.pem`: the matching PEM private key, readable by nginx.
+- `certs/fullchain.pem`: a PEM certificate and its intermediate chain, with the `*.adgrx.com` wildcard.
+- `certs/privkey.pem`: the matching PEM private key
 
 Then you can start the service:
 
-```sh
-docker compose up -d --build
+```
+cargo run --release
 ```
 
-To force your TV to talk to the AdSpoofer instead of real adgrx.com, you can use simple DNS redirection. If you are running Pihole, custom DNS server, or your router allows specifying custom DNS rules, just configure it to resolve `*.adgrx.com` to the IP address of the device where you are running the AdSpoofer.
+To force your TV to talk to the AdSpoofer instead of real `adgrx.co`m, you can use simple DNS redirection. If you are running Pihole, custom DNS server, or your router allows specifying custom DNS rules, just configure it to resolve `*.adgrx.com` to the IP address of the device where you are running the AdSpoofer.
 
 
