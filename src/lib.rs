@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: MIT
 
 use std::net::{IpAddr, SocketAddr};
+use std::path::Path;
 use std::str::FromStr;
 use std::sync::Arc;
 use std::time::Duration;
@@ -20,9 +21,9 @@ use minijinja::Environment;
 
 use tokio::net::TcpListener;
 
-use tracing::{Span, info};
+use tracing::{Span, info, warn};
 
-use crate::config::AppConfig;
+use crate::config::{AppConfig, HttpsServerConfig};
 use crate::database::Database;
 use crate::pictures::Pictures;
 
@@ -33,13 +34,37 @@ mod handlers;
 mod models;
 mod pictures;
 
-pub use models::{Crop, Picture, PictureId, CroppedPicture};
+pub use models::{Crop, CroppedPicture, Picture, PictureId};
 
 pub struct AppState<'a> {
     db: Database,
     pictures: Pictures<'a>,
     config: AppConfig,
     jinja: Environment<'a>,
+}
+
+async fn into_tls_config(
+    config: &HttpsServerConfig,
+) -> Result<Option<RustlsConfig>, std::io::Error> {
+    match (&config.tls_private_key_path, &config.tls_chain_path) {
+        (Some(tls_private_key_path), Some(tls_chain_path)) => {
+            if !Path::new(tls_private_key_path).exists() {
+                warn!("TLS private key PEM file doesn't exist, not running a TLS service");
+                return Ok(None);
+            }
+            if !Path::new(tls_chain_path).exists() {
+                warn!(
+                    "TLS fullchain certificate PEM file doesn't exist, not running a TLS service"
+                );
+                return Ok(None);
+            }
+
+            Ok(Some(
+                RustlsConfig::from_pem_chain_file(tls_chain_path, tls_private_key_path).await?,
+            ))
+        }
+        _ => Ok(None),
+    }
 }
 
 pub async fn create_app(config: AppConfig) -> Result<(), Box<dyn std::error::Error>> {
@@ -106,7 +131,10 @@ pub async fn create_app(config: AppConfig) -> Result<(), Box<dyn std::error::Err
 
     // Plain listener
     let listen = &shared_state.config.http_server;
-    let listen = SocketAddr::new(IpAddr::from_str(&listen.listen_address)?, listen.listen_port);
+    let listen = SocketAddr::new(
+        IpAddr::from_str(&listen.listen_address)?,
+        listen.listen_port,
+    );
     let listener = TcpListener::bind(listen).await?;
     let plain_app = app.clone();
     let plain_server = tokio::spawn(async move {
@@ -116,19 +144,18 @@ pub async fn create_app(config: AppConfig) -> Result<(), Box<dyn std::error::Err
 
     // TLS listener (optional)
     let tls_listen = &shared_state.config.https_server;
-    match (&tls_listen.tls_private_key_path, &tls_listen.tls_chain_path) {
-        (Some(tls_private_key_path), Some(tls_chain_path)) => {
-            let tls_config = RustlsConfig::from_pem_chain_file(tls_chain_path, tls_private_key_path).await?;
-            let tls_listen = SocketAddr::new(IpAddr::from_str(&tls_listen.listen_address)?, tls_listen.listen_port);
-            info!("Starting AdSpoofer TLS listener on {tls_listen}");
-            axum_server::bind_rustls(tls_listen, tls_config)
-                .serve(app.into_make_service())
-                .await?;
-        },
-        _ => {
-            _ = plain_server.await?;
-        }
-    }
+    if let Some(tls_config) = into_tls_config(tls_listen).await? {
+        let tls_listen = SocketAddr::new(
+            IpAddr::from_str(&tls_listen.listen_address)?,
+            tls_listen.listen_port,
+        );
+        info!("Starting AdSpoofer TLS listener on {tls_listen}");
+        axum_server::bind_rustls(tls_listen, tls_config)
+            .serve(app.into_make_service())
+            .await?;
+    } else {
+        _ = plain_server.await?;
+    };
 
     Ok(())
 }

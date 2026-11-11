@@ -33,9 +33,9 @@ pub struct Args {
     pub base_url: Option<String>,
     #[arg(long, value_name = "level", value_enum)]
     pub log_level: Option<LogLevel>,
-    #[arg(long, value_name = "PATH", help = "PEM-formatted full certificate chain.")]
+    #[arg(long, value_name = "PATH", default_value = "./certs/fullchain.pem", help = "PEM-formatted full certificate chain.")]
     pub tls_chain_path: Option<String>,
-    #[arg(long, value_name = "PATH", help = "PEM-formatted private key.")]
+    #[arg(long, value_name = "PATH", default_value = "./certs/privkey.pem", help = "PEM-formatted private key.")]
     pub tls_key_path: Option<String>,
 }
 
