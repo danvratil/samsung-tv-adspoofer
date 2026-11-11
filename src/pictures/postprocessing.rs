@@ -11,7 +11,7 @@ use image::{DynamicImage, ImageDecoder, ImageError, ImageFormat, ImageReader, Rg
 use thiserror::Error;
 use tokio::process::Command;
 use tokio::task::JoinError;
-use tracing::{span, event, Level};
+use tracing::{Level, event, span};
 
 use crate::Crop;
 
@@ -292,4 +292,3 @@ async fn render_transition_video(
     event!(Level::DEBUG, "ffmpeg finished successfully");
     Ok(())
 }
-

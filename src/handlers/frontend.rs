@@ -102,14 +102,14 @@ pub async fn get_image_handler(
         }
     };
 
-   let file = File::open(&path).await.map_err(|e| {
+    let file = File::open(&path).await.map_err(|e| {
         error!("Could not open image file at path {:?}: {:?}", path, e);
         StatusCode::NOT_FOUND
     })?;
     let stream = ReaderStream::new(file);
 
     Response::builder()
-        .header("Content-Type", "image/jpeg") 
+        .header("Content-Type", "image/jpeg")
         .body(Body::from_stream(stream))
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)
 }
@@ -141,7 +141,10 @@ pub async fn get_image_kind_handler(
         ));
 
     let file = File::open(&final_path).await.map_err(|e| {
-        error!("Could not open image file at path {:?}: {:?}", final_path, e);
+        error!(
+            "Could not open image file at path {:?}: {:?}",
+            final_path, e
+        );
         StatusCode::NOT_FOUND
     })?;
     let stream = ReaderStream::new(file);

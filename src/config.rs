@@ -90,9 +90,9 @@ pub struct HttpsServerConfig {
     #[serde(default = "default_listen_address")]
     pub listen_address: String,
     #[serde(default = "default_tls_listen_port")]
-    pub listen_port:u16,
+    pub listen_port: u16,
     pub tls_chain_path: Option<PathBuf>,
-    pub tls_private_key_path: Option<PathBuf>
+    pub tls_private_key_path: Option<PathBuf>,
 }
 
 #[derive(Debug, Deserialize, Default)]
